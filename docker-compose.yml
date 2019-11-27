@@ -1,0 +1,81 @@
+# Adopt version 3 syntax:
+#   https://docs.docker.com/compose/compose-file/#/versioning
+version: '2'
+
+volumes:
+    database_data:
+        driver: local
+
+services:
+###########################
+# Setup the Nginx container
+###########################
+    nginx:
+        container_name: service-nginx-test
+        image: nginx:alpine
+        ports:
+            - 80:80
+        volumes:
+            - ./docker/nginx/:/etc/nginx/conf.d/:ro
+        volumes_from:
+            - php
+        networks:
+          web:
+            ipv4_address: 172.16.238.2
+###########################
+# Setup the PHP container
+###########################
+    php:
+        container_name: service-php-test
+        build: ./docker/php/7.2
+        ########swoole tcp########
+        #ports:
+        #   - 9501:9501
+        expose:
+            - 9000
+        cap_add:
+            - SYS_PTRACE
+        volumes:            
+            - ${DOCUMENT_ROOT}:/var/www/html:rw
+            - ./docker/hosts/hosts:/etc/hosts
+        networks:
+          web:
+            ipv4_address: 172.16.238.3
+###########################
+# Setup the mysql container
+###########################
+    mysql:
+      image: mysql:8.0.11
+      container_name: service-mysql-test
+      ports:
+        - "3306:3306"
+      volumes:
+        - ./conf/my.cnf:/etc/mysql/my.cnf:ro
+        - ./mysql/:/var/lib/mysql/:rw
+        - ./log/:/var/log/dnmp/:rw
+      networks:
+        web:
+          ipv4_address: 172.16.238.4
+      environment:
+        MYSQL_ROOT_PASSWORD: "123456"
+###########################
+# Setup the redis container
+###########################
+    redis:
+      image: redis:4.0
+      container_name: service-redis-test
+      networks:
+        web:
+          ipv4_address: 172.16.238.5
+      ports:
+        - "6379:6379"
+###########################
+# Setup Network
+###########################   
+networks:
+  web:
+    driver: bridge
+    ipam:
+      config:
+        -
+          subnet: 172.16.238.0/24
